@@ -1,83 +1,104 @@
-from config import CRT_TAXONOMY
+from typing import List
+from app.models import MessageTurn
 
-def get_analyse_prompt(language_name: str, t_v_info: str, thread_text: str) -> str:
-    crt_desc = "\n".join([f"- {k}: {v}" for k, v in CRT_TAXONOMY.items()])
-    return f"""You are the Pragmatic Intelligent Translation Coach (PITC) analyzer.
-Evaluate the following conversation thread in {language_name}.
-T-V Pronoun Rules for this language: {t_v_info}
+def get_thread_analysis_prompt(language: str, thread: List[MessageTurn]) -> str:
+    transcript = "\n".join([f"{t.speaker}: {t.message}" for t in thread])
+    return f"""You are a sociopragmatic intercultural communication diagnostic engine.
+Language: {language}
 
-Cultural Risk Taxonomy (CRT):
-{crt_desc}
+Conversation Transcript:
+{transcript}
 
-Conversation Thread:
-{thread_text}
+Diagnose this thread for pragmatic tension, relational strain, and Cultural Risk Taxonomy (CRT C1-C5) violations:
+C1: Register/Honorific Mismatch (T-V distinction)
+C2: Idiomatic Opacity
+C3: Gender Agreement Discordance
+C4: Hierarchy Violation
+C5: Cultural/Religious Taboo
 
-Analyze the dialogue for relational friction, improper social distance, or CRT violations.
-Return ONLY valid JSON with this exact schema:
+Return ONLY a raw JSON object:
 {{
-  "health_score": "Low" | "Medium" | "High",
-  "health_explanation": "Concise diagnostic of the relational status",
-  "riskiest_message_index": 0,
-  "crt_category": "C1: Register Mismatch" | "C2: Idiomatic Opacity" | "C3: Gendered Language" | "C4: Hierarchy Violation" | "C5: Cultural/Religious Sensitivity" | "None",
-  "crt_explanation": "Specific reason why this message breached pragmatic norms",
-  "recommendation": "Concrete de-escalation action or advice"
+  "health_score": 75,
+  "crt_violations": ["C1", "C4"],
+  "root_cause": "Concise summary of friction",
+  "remediation_advice": "Actionable recommendation to repair relational tone"
 }}"""
 
+def get_coaching_prompt(language: str, draft: str, recipient_role: str) -> str:
+    return f"""You are an expert cross-cultural pragmatic linguistic coach for workplace and interpersonal messaging.
+Target Language: {language}
+Recipient Role: {recipient_role} (Options: 'senior' / superior, 'peer' / colleague, 'junior' / subordinate)
+Draft Message: "{draft}"
 
-def get_reply_prompt(language_name: str, thread_text: str, goal: str) -> str:
-    return f"""You are PITC, a pragmatic ghostwriter crafting the next conversational turn in {language_name}.
+Task:
+1. Determine if this draft contains any Cultural Risk Taxonomy (CRT) violations given the recipient's role:
+   - C1: Register / Pronoun mismatch (e.g., using informal 'Tu/Tum' or 'Nee' with a senior, or overly stiff honorifics with an intimate peer)
+   - C2: Idiomatic opacity / mistranslations
+   - C3: Gendered concord errors
+   - C4: Hierarchy / deference violations
+   - C5: Socio-cultural or religious insensitivity
 
-Context Thread:
-{thread_text}
+2. Generate THREE calibrated versions of the draft in {language}:
+   - Formal: High deference with formal honorific pronouns (e.g. Hindi: Aap, Tamil: Neenga, Kannada: Neevu, Arabic: Hadratak). Suitable for seniors, superiors, elders, or clients.
+   - Semi-Formal: Polite, balanced register suitable for professional peer-to-peer collaboration.
+   - Casual: Informal, direct peer/colloquial phrasing (e.g. Hindi: Tum/Tu, Tamil: Nee, Kannada: Neenu, Arabic: Inta) suitable for junior teammates or close friends.
 
-User's Communicative Goal:
-"{goal}"
+3. Provide brief 1-sentence descriptions of how the recipient will perceive each version.
 
-Generate a diplomatically calibrated, polite, and culturally appropriate response.
-Return ONLY valid JSON with this exact schema:
+Return ONLY a single valid raw JSON object matching this schema:
 {{
-  "english_reply": "Natural English version of the response",
-  "translated_reply": "Native script translation in {language_name} using optimal honorifics",
-  "register_explanation": "Why this specific pronoun and honorific level was chosen"
+  "is_risky": true,
+  "risk_level": "amber",
+  "crt_code": "C1",
+  "warning_message": "Concise 1-sentence warning diagnosing the pragmatic risk in the draft relative to the recipient role",
+  "clarification_question": "Optional 1-sentence prompt asking to clarify relationship context if ambiguous",
+  "variants": {{
+    "formal": "Formal high-deference version in target script",
+    "semi_formal": "Semi-formal polite version in target script",
+    "casual": "Informal peer version in target script"
+  }},
+  "predicted_reactions": {{
+    "formal_reaction": "How the recipient will perceive this formal version",
+    "semi_formal_reaction": "How the recipient will perceive this semi-formal version",
+    "casual_reaction": "How the recipient will perceive this casual version"
+  }}
 }}"""
 
+def get_reply_ghostwriter_prompt(language: str, history: List[MessageTurn], goal: str) -> str:
+    transcript = "\n".join([f"{t.speaker}: {t.message}" for t in history])
+    return f"""You are an in-chat diplomatic ghostwriter.
+Language: {language}
+Communicative Goal: {goal}
 
-def get_coach_prompt(
-    source_text: str, 
-    language_name: str, 
-    intent: dict, 
-    answers: dict = None
-) -> str:
-    answers_str = f"User Clarification Answers: {answers}" if answers else "No clarifications provided yet."
+Context:
+{transcript}
 
-    return f"""You are PITC Single Message Coach for {language_name}.
-Source text to coach: "{source_text}"
-Communicative Context:
-- Recipient: {intent.get('recipient')}
-- Purpose: {intent.get('purpose')}
-{answers_str}
-
-If the recipient relationship or seniority is completely ambiguous AND crucial to choose between formal/informal pronouns, set "needs_clarification": true and provide 1-2 questions.
-Otherwise, set "needs_clarification": false, translate the message with 3 formality variants, and simulate 2 'What-If' reactions.
-
-Return ONLY valid JSON with this exact schema:
+Generate a culturally calibrated response that achieves the goal without causing pragmatic friction.
+Return ONLY a raw JSON object:
 {{
-  "needs_clarification": false,
-  "clarification_questions": [],
-  "clarification_reason": "",
-  "primary_translation": "Best recommended translation in native script",
-  "variants": [
-    {{"register": "Formal", "text": "...", "nuance": "For seniors/bosses"}},
-    {{"register": "Semi-formal", "text": "...", "nuance": "For peers/colleagues"}},
-    {{"register": "Casual", "text": "...", "nuance": "For close friends/juniors"}}
-  ],
-  "branches": [
-    {{
-      "anticipated_reply": "How recipient might react if tone is wrong",
-      "risk_level": "High" | "Medium" | "Low",
-      "risk_reason": "Why this reaction occurs",
-      "safer_alternative": "What to say instead"
-    }}
-  ],
-  "cultural_notes": "Important sociolinguistic guidance"
+  "suggested_reply": "Culturally calibrated text in native script",
+  "diplomatic_rationale": "One sentence explaining why this wording succeeds"
+}}"""
+
+def get_speech_translate_prompt(text: str, src_lang: str, tgt_lang: str, tone: str) -> str:
+    return f"""You are a bidirectional speech translation engine.
+
+TASK:
+Translate the input text from {src_lang} into {tgt_lang}.
+DO NOT repeat the text in {src_lang}. The output MUST be in {tgt_lang} and written in its native script.
+
+Input Text ({src_lang}): "{text}"
+Target Language: {tgt_lang}
+Requested Tone: {tone.upper()}
+
+Tone Directives for {tgt_lang}:
+- POLITE: Use formal honorific pronouns (e.g. Hindi: Aap, Tamil: Neenga, Kannada: Neevu, Arabic: Hadratak, English: polite modal verbs like 'could you please').
+- TRADITIONAL: Respectful, culturally grounded classical phrasing and idioms.
+- CASUAL: Informal/intimate pronouns (e.g. Hindi: Tum/Tu, Tamil: Nee, Kannada: Neenu, Arabic: Inta, English: direct colloquial phrasing).
+
+Return ONLY a raw JSON object with these exact keys:
+{{
+  "translated_text": "The translated text strictly in {tgt_lang}",
+  "t_v_pronoun_used": "Pronoun and level used (e.g. Aap - Formal)",
+  "cultural_notes": "One brief sentence explaining why this matches the {tone} tone in {tgt_lang}"
 }}"""

@@ -1,84 +1,80 @@
-from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 
-# --- Shared & Language ---
-class LanguageInfo(BaseModel):
-    code: str
-    name: str
-    native: str
-    script: str
-    direction: str
-    font_class: str
-    t_v_system: str
-
-class MessageItem(BaseModel):
+class MessageTurn(BaseModel):
     speaker: str
     message: str
 
-# --- Mode 1: Thread Analyser ---
+# --- Thread Auditor Models ---
 class ThreadAnalyseRequest(BaseModel):
-    session_id: str
-    language_code: str
-    thread: List[MessageItem]
-    provider: Optional[str] = Field(default="auto", description="'cloud', 'local', or 'auto'")
+    session_id: str = "default-session"
+    language_code: str = "hi"
+    thread: List[MessageTurn]
+    provider: Optional[str] = "auto"
 
 class ThreadAnalyseResponse(BaseModel):
     session_id: str
-    health_score: str
-    health_explanation: str
-    riskiest_message_index: int
-    crt_category: str
-    crt_explanation: str
-    recommendation: str
-    model_used: Optional[str] = None
+    health_score: int
+    crt_violations: List[str]
+    root_cause: str
+    remediation_advice: str
+    model_used: str
 
-# --- Mode 2: Smart Reply ---
-class SmartReplyRequest(BaseModel):
-    session_id: str
-    language_code: str
-    thread: List[MessageItem]
-    goal: str
-    provider: Optional[str] = Field(default="auto", description="'cloud', 'local', or 'auto'")
-
-class SmartReplyResponse(BaseModel):
-    session_id: str
-    english_reply: str
-    translated_reply: str
-    register_explanation: str
-    model_used: Optional[str] = None
-
-# --- Mode 3: Single Message Coach ---
-class CoachIntent(BaseModel):
-    purpose: str
-    recipient: str
-    tone: Optional[str] = "Respectful"
-
-class FormalityVariant(BaseModel):
-    register: str
-    text: str
-    nuance: str
-
-class WhatIfBranch(BaseModel):
-    anticipated_reply: str
-    risk_level: str
-    risk_reason: str
-    safer_alternative: str
+# --- Formality & CRT Coach Models ---
+class FormalityVariants(BaseModel):
+    formal: str
+    semi_formal: str
+    casual: str
 
 class CoachRequest(BaseModel):
-    session_id: str
-    source_text: str
-    language_code: str
-    intent: CoachIntent
-    clarification_answers: Optional[Dict[str, str]] = None
-    provider: Optional[str] = Field(default="auto", description="'cloud', 'local', or 'auto'")
+    session_id: str = "default-session"
+    language_code: str = "hi"
+    draft_message: str
+    recipient_role: Optional[str] = Field(
+        default="senior", 
+        description="One of: 'senior', 'peer', 'junior'"
+    )
+    provider: Optional[str] = "auto"
 
 class CoachResponse(BaseModel):
+    is_risky: bool
+    risk_level: str
+    crt_code: Optional[str] = None
+    warning_message: Optional[str] = None
+    clarification_question: Optional[str] = None
+    variants: Optional[FormalityVariants] = None
+    predicted_reactions: Optional[Dict[str, str]] = None
+    model_used: str
+
+# --- Ghostwriter Reply Models ---
+class ReplyRequest(BaseModel):
+    session_id: str = "default-session"
+    language_code: str = "hi"
+    conversation_history: List[MessageTurn]
+    goal: str
+    provider: Optional[str] = "auto"
+
+class ReplyResponse(BaseModel):
+    suggested_reply: str
+    diplomatic_rationale: str
+    model_used: str
+
+# --- Speech-to-Speech Models ---
+class SpeechTranslateRequest(BaseModel):
+    session_id: str = "speech-session-default"
+    audio_text: str
+    source_language: str
+    target_language: str
+    tone: str = "polite"
+    provider: Optional[str] = "auto"
+
+class SpeechTranslateResponse(BaseModel):
     session_id: str
-    needs_clarification: bool
-    clarification_questions: List[str] = []
-    clarification_reason: Optional[str] = None
-    primary_translation: Optional[str] = None
-    variants: List[FormalityVariant] = []
-    branches: List[WhatIfBranch] = []
-    cultural_notes: Optional[str] = None
-    model_used: Optional[str] = None
+    original_text: str
+    translated_text: str
+    source_language: str
+    target_language: str
+    selected_tone: str
+    t_v_pronoun_used: str
+    cultural_notes: str
+    model_used: str
