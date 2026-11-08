@@ -6,7 +6,7 @@ load_dotenv()
 
 # Cloud Provider (Gemini direct REST)
 CLOUD_BASE_URL: str = os.getenv("CLOUD_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/models")
-CLOUD_API_KEY: str = os.getenv("GEMINI_API_KEY", "AQ.Ab8RN6IP3Wy3juJM70lw-BL0z8edEOgFgh4sCn46rMTTW6iM4g").strip()
+CLOUD_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
 CLOUD_MODEL_NAME: str = os.getenv("CLOUD_MODEL_NAME", "gemini-3.5-flash-lite")
 CLOUD_TIMEOUT_SECONDS: float = float(os.getenv("CLOUD_TIMEOUT_SECONDS", "10.0"))
 
