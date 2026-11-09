@@ -78,3 +78,20 @@ class SpeechTranslateResponse(BaseModel):
     t_v_pronoun_used: str
     cultural_notes: str
     model_used: str
+
+# --- Incoming Chat Reply Models (contact replies to the user) ---
+class ChatReplyRequest(BaseModel):
+    session_id: str = "default-session"
+    language_code: str = "hi"
+    contact_name: str
+    contact_role: str = Field(
+        default="peer",
+        description="One of: 'senior', 'peer', 'junior'"
+    )
+    conversation_history: List[MessageTurn]
+    provider: Optional[str] = "auto"
+
+class ChatReplyResponse(BaseModel):
+    speaker: str
+    reply: str
+    model_used: str

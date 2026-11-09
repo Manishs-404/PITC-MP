@@ -1,160 +1,144 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import Icon from './Icon';
+import HomePage from './HomePage';
 import ChatApp from './ChatApp';
 import SpeechTranslator from './SpeechTranslator';
+import CrtGuide from './CrtGuide';
+import SettingsPage from './SettingsPage';
+import { INITIAL_ROLE_CHATS } from '../data/chats';
+
+const PAGES = {
+  home: ['Home', 'Proactive Intelligent Translation Coach'],
+  chats: ['Text Chat', 'Role-calibrated conversations with a pre-send CRT guardrail'],
+  voice: ['Voice Coach', 'Bidirectional speech-to-speech with tone calibration'],
+  crt: ['CRT Guide', 'Cultural Risk Taxonomy – five dimensions of pragmatic risk'],
+  set: ['Settings', 'Engine, language, voice and appearance'],
+};
+
+const NAV = [
+  { id: 'home', label: 'Home', icon: 'home' },
+  { id: 'chats', label: 'Chats', icon: 'chat' },
+  { id: 'voice', label: 'Voice', icon: 'mic' },
+  { id: 'crt', label: 'CRT Guide', icon: 'shield' },
+];
+
+const SETTINGS_KEY = 'pitc.settings';
+const DEFAULT_SETTINGS = {
+  provider: 'auto',
+  theme: 'dark',
+  defaultScript: 'hi',
+  defaultTone: 'polite',
+  autoSpeak: true,
+  speechRate: 0.92,
+  showReactions: true,
+};
+
+function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+}
 
 export default function MainPage() {
-  const [activeMode, setActiveMode] = useState('landing');
-  const [activeProvider, setActiveProvider] = useState('auto');
-  const [speechPastedText, setSpeechPastedText] = useState('');
+  const [page, setPage] = useState('home');
+  const [settings, setSettings] = useState(loadSettings);
+  const [chatThreads, setChatThreads] = useState(INITIAL_ROLE_CHATS);
+  const [activeChatId, setActiveChatId] = useState('senior');
+  const [pastedText, setPastedText] = useState('');
+
+  const updateSetting = (key, value) => setSettings((s) => ({ ...s, [key]: value }));
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch { /* storage unavailable – ignore */ }
+  }, [settings]);
+
+  const unreadTotal = Object.values(chatThreads).reduce((n, t) => n + (t.unread || 0), 0);
+
+  const openChat = (id) => {
+    setActiveChatId(id);
+    setChatThreads((prev) => ({ ...prev, [id]: { ...prev[id], unread: 0 } }));
+    setPage('chats');
+  };
+
+  const updateThread = (id, patch) =>
+    setChatThreads((prev) => ({ ...prev, [id]: { ...prev[id], ...(typeof patch === 'function' ? patch(prev[id]) : patch) } }));
+
+  const [title, subtitle] = PAGES[page];
 
   return (
-    <div className="min-h-screen bg-[#0b141a] text-slate-100 flex flex-col font-sans">
-      <header className="h-16 border-b border-slate-800 bg-[#111b21] px-6 flex items-center justify-between z-10">
-        <div
-          onClick={() => setActiveMode('landing')}
-          className="flex items-center gap-3 cursor-pointer select-none"
-        >
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-emerald-900/30">
-            P
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-slate-100">PITC</h1>
-              <span className="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                v2.0 Hybrid
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">Proactive Intelligent Translation Coach</p>
-          </div>
-        </div>
+    <div className="shell">
+      <nav className="rail">
+        <div className="logo">P</div>
+        {NAV.map((n) => (
+          <button key={n.id} className={`nav ${page === n.id ? 'on' : ''}`} onClick={() => setPage(n.id)}>
+            <Icon name={n.icon} size={24} />
+            {n.label}
+            {n.id === 'chats' && unreadTotal > 0 && <span className="dot">{unreadTotal}</span>}
+          </button>
+        ))}
+        <div className="sp" />
+        <button className={`nav ${page === 'set' ? 'on' : ''}`} onClick={() => setPage('set')}>
+          <Icon name="settings" size={24} />
+          Settings
+        </button>
+        <div className="me" title="You">ME</div>
+      </nav>
 
-        <div className="flex items-center gap-3">
-          {activeMode !== 'landing' && (
-            <div className="flex bg-[#202c33] p-1 rounded-xl border border-slate-700 text-xs">
-              <button
-                onClick={() => setActiveMode('text')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                  activeMode === 'text'
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>💬</span>
-                <span>Text Chat</span>
-              </button>
-              <button
-                onClick={() => setActiveMode('speech')}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 ${
-                  activeMode === 'speech'
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span>🎙️</span>
-                <span>Voice Coach</span>
-              </button>
-            </div>
-          )}
-
-          <div className="hidden sm:flex items-center gap-1.5 bg-[#182229] border border-slate-700/80 px-2.5 py-1 rounded-xl text-xs text-slate-300">
-            <span className="text-[10px] uppercase font-semibold text-slate-400">Engine:</span>
-            <select
-              value={activeProvider}
-              onChange={(e) => setActiveProvider(e.target.value)}
-              className="bg-transparent text-emerald-400 font-medium focus:outline-none cursor-pointer"
-            >
-              <option value="auto" className="bg-[#1e293b] text-white">Auto (Gemini ⇄ Aya 8B)</option>
-              <option value="cloud" className="bg-[#1e293b] text-white">Cloud Only (Gemini)</option>
-              <option value="local" className="bg-[#1e293b] text-white">Local Only (Ollama)</option>
+      <div className="content">
+        <header className="topbar">
+          <div className="crumbs">
+            <h2>{title}</h2>
+            <small>{subtitle}</small>
+          </div>
+          <div className="pill engpill">
+            <span className="live" />
+            Engine
+            <select value={settings.provider} onChange={(e) => updateSetting('provider', e.target.value)}>
+              <option value="auto">Auto (Gemini ⇄ Aya 8B)</option>
+              <option value="cloud">Cloud Only (Gemini)</option>
+              <option value="local">Local Only (Ollama)</option>
             </select>
           </div>
-        </div>
-      </header>
+          <button
+            className="tbtn"
+            title="Toggle light / dark"
+            onClick={() => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+          >
+            <Icon name="theme" />
+          </button>
+        </header>
 
-      <main className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-        {activeMode === 'landing' && (
-          <div className="w-full max-w-4xl px-6 py-12 flex flex-col items-center text-center z-10">
-            <div className="inline-flex items-center gap-2 bg-[#182229] border border-slate-700 px-3 py-1 rounded-full text-xs text-slate-300 mb-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Cultural Risk Taxonomy (CRT) Activated</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-3">
-              Communicate Across Cultures with <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">Zero Pragmatic Friction</span>
-            </h2>
-            <p className="text-slate-400 text-sm sm:text-base max-w-2xl mb-10 leading-relaxed">
-              Detect honorific mismatches, hierarchy risks, and sociopragmatic friction before transmission across Hindi, Tamil, Kannada, and Arabic. Choose your modality:
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
-              <div
-                onClick={() => setActiveMode('text')}
-                className="group relative bg-[#111b21] hover:bg-[#152028] border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-7 text-left transition-all duration-200 cursor-pointer shadow-xl hover:-translate-y-1 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-                    💬
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-1.5 flex items-center justify-between">
-                    Text Chat Guardrail
-                    <span className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm">→</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    WhatsApp-style messaging with real-time keystroke interception. Flags inappropriate T-V pronouns (Tu vs. Aap) and provides one-click calibrated swaps.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-4 border-t border-slate-800/80">
-                  <span className="text-[10px] bg-[#1f2c34] text-slate-300 px-2 py-0.5 rounded">Pre-Send Hook</span>
-                  <span className="text-[10px] bg-[#1f2c34] text-slate-300 px-2 py-0.5 rounded">CRT Checks</span>
-                </div>
-              </div>
-
-              <div
-                onClick={() => setActiveMode('speech')}
-                className="group relative bg-[#111b21] hover:bg-[#152028] border border-slate-800 hover:border-sky-500/50 rounded-2xl p-7 text-left transition-all duration-200 cursor-pointer shadow-xl hover:-translate-y-1 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">
-                    🎙️
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-1.5 flex items-center justify-between">
-                    Bidirectional Voice Coach
-                    <span className="text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm">→</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed mb-4">
-                    Live speech-to-speech translation with tone calibration. Speak naturally and adapt output between Polite, Traditional, and Casual registers.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-4 border-t border-slate-800/80">
-                  <span className="text-[10px] bg-[#1f2c34] text-slate-300 px-2 py-0.5 rounded">Push-To-Talk</span>
-                  <span className="text-[10px] bg-[#1f2c34] text-slate-300 px-2 py-0.5 rounded">Tone Calibration</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeMode === 'text' && (
-  <ChatApp 
-    provider={activeProvider} 
-    initialDraft={speechPastedText} 
-    onBackToHome={() => setActiveMode('landing')}
-  />
-)}
-
-        {activeMode === 'speech' && (
-          <div className="w-full max-w-xl p-4">
+        <main className="pages">
+          {page === 'home' && <HomePage threads={chatThreads} onNavigate={setPage} onOpenChat={openChat} />}
+          {page === 'chats' && (
+            <ChatApp
+              threads={chatThreads}
+              activeChatId={activeChatId}
+              onSelectChat={openChat}
+              onUpdateThread={updateThread}
+              settings={settings}
+              initialDraft={pastedText}
+              onDraftConsumed={() => setPastedText('')}
+            />
+          )}
+          {page === 'voice' && (
             <SpeechTranslator
-              provider={activeProvider}
-              onClose={() => setActiveMode('landing')}
+              settings={settings}
               onInsertToChat={(text) => {
-                setSpeechPastedText(text);
-                setActiveMode('text');
+                setPastedText(text);
+                setPage('chats');
               }}
             />
-          </div>
-        )}
-      </main>
+          )}
+          {page === 'crt' && <CrtGuide />}
+          {page === 'set' && <SettingsPage settings={settings} onChange={updateSetting} />}
+        </main>
+      </div>
     </div>
   );
 }

@@ -102,3 +102,24 @@ Return ONLY a raw JSON object with these exact keys:
   "t_v_pronoun_used": "Pronoun and level used (e.g. Aap - Formal)",
   "cultural_notes": "One brief sentence explaining why this matches the {tone} tone in {tgt_lang}"
 }}"""
+
+def get_chat_reply_prompt(language: str, contact_name: str, contact_role: str, history: List[MessageTurn]) -> str:
+    role_styles = {
+        "senior": "a senior superior; authoritative, formal, expects deference",
+        "peer": "a friendly professional colleague; polite, balanced, semi-formal",
+        "junior": "a junior team member; respectful yet casual and eager",
+    }
+    style = role_styles.get(contact_role, role_styles["peer"])
+    transcript = "\n".join([f"{t.speaker}: {t.message}" for t in history])
+    return f"""You are roleplaying {contact_name}, {style}, in a workplace chat.
+Language: {language} (write in its native script)
+
+Conversation so far:
+{transcript}
+
+Write {contact_name}'s next message replying naturally to the last message from "You".
+Keep it to 1-2 sentences. Write ONLY as {contact_name}, never as "You".
+Return ONLY a raw JSON object:
+{{
+  "reply": "{contact_name}'s message in native script"
+}}"""
