@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import speech
+from app.routers import speech, chat_reply
 from app.models import (
     ThreadAnalyseRequest, ThreadAnalyseResponse,
     CoachRequest, CoachResponse,
@@ -29,6 +29,7 @@ app.add_middleware(
 
 # Include the Speech Translation router
 app.include_router(speech.router)
+app.include_router(chat_reply.router)
 
 @app.get("/health")
 def health_check():
