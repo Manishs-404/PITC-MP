@@ -1,146 +1,132 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Icon from './Icon';
 
-const BCP_MAP = {
-  en: 'en-US',
-  hi: 'hi-IN',
-  ta: 'ta-IN',
-  kn: 'kn-IN',
-  ar: 'ar-SA'
-};
+const API_BASE = 'http://localhost:8000';
+
+const BCP_MAP = { en: 'en-US', hi: 'hi-IN', ta: 'ta-IN', kn: 'kn-IN', ar: 'ar-SA' };
 
 const LANG_OPTIONS = [
   { code: 'en', label: 'English (US)' },
   { code: 'hi', label: 'Hindi (हिन्दी)' },
   { code: 'ta', label: 'Tamil (தமிழ்)' },
   { code: 'kn', label: 'Kannada (ಕನ್ನಡ)' },
-  { code: 'ar', label: 'Arabic (العربية)' }
+  { code: 'ar', label: 'Arabic (العربية)' },
 ];
 
-export default function SpeechTranslator({ provider = 'auto', onClose, onInsertToChat }) {
+const TONE_INFO = [
+  { id: 'polite', title: 'Polite', text: 'Everyday respectful register. Uses formal “you” (Aap / Neenga) without heavy honorifics.' },
+  { id: 'traditional', title: 'Traditional', text: 'Elevated, deferential phrasing for elders, officials and ceremonial settings.' },
+  { id: 'casual', title: 'Casual', text: 'Close, informal register (Tum / Tu) for friends, juniors and family.' },
+];
+
+const shortName = (code) => LANG_OPTIONS.find((l) => l.code === code)?.label.split(' ')[0];
+
+export default function SpeechTranslator({ settings, onInsertToChat }) {
   const [langA, setLangA] = useState('en');
   const [langB, setLangB] = useState('hi');
-  const [tone, setTone] = useState('polite');
+  const [tone, setTone] = useState(settings.defaultTone);
   const [isRecording, setIsRecording] = useState(null); // 'A' | 'B' | null
-  const [transcribedText, setTranscribedText] = useState('');
-  const [translatedResult, setTranslatedResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [turns, setTurns] = useState([]); // [{ side, heard, result }]
+  const [error, setError] = useState('');
 
   const recognitionRef = useRef(null);
   const voicesRef = useRef([]);
-  // Use a ref so the speech callback always reads the live speaker without stale state closures
-  const activeSpeakerRef = useRef(null);
+  const activeSpeakerRef = useRef(null); // live speaker for the speech callback (avoids stale closures)
+  const settingsRef = useRef(settings);
+  const threadRef = useRef(null);
 
-  // Load and cache browser TTS voices
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
   useEffect(() => {
-    const updateVoices = () => {
-      if ('speechSynthesis' in window) {
-        voicesRef.current = window.speechSynthesis.getVoices();
-      }
-    };
-    updateVoices();
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = updateVoices;
-    }
+    if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
+  }, [turns, isLoading]);
+
+  // Cache browser TTS voices
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) return;
+    const update = () => { voicesRef.current = window.speechSynthesis.getVoices(); };
+    update();
+    window.speechSynthesis.onvoiceschanged = update;
   }, []);
 
-  // Initialize Web Speech Recognition
+  // (Re)build the Web Speech recognizer whenever the language pair, tone or engine changes
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-      recognition.onresult = async (event) => {
-        const text = event.results[0][0].transcript;
-        const currentSpeaker = activeSpeakerRef.current;
-        setIsRecording(null);
-        setTranscribedText(text);
-
-        if (currentSpeaker) {
-          await handleTranslate(text, currentSpeaker);
-        }
-      };
-
-      recognition.onerror = (e) => {
-        console.error('Speech recognition error:', e);
-        setIsRecording(null);
-        activeSpeakerRef.current = null;
-      };
-
-      recognition.onend = () => {
-        setIsRecording(null);
-        activeSpeakerRef.current = null;
-      };
-
-      recognitionRef.current = recognition;
-    }
-  }, [langA, langB, tone, provider]);
+    recognition.onresult = async (event) => {
+      const text = event.results[0][0].transcript;
+      const side = activeSpeakerRef.current;
+      setIsRecording(null);
+      if (side) await handleTranslate(text, side);
+    };
+    recognition.onerror = (e) => {
+      console.error('Speech recognition error:', e);
+      setIsRecording(null);
+      activeSpeakerRef.current = null;
+      if (e.error && e.error !== 'aborted' && e.error !== 'no-speech') setError(`Speech recognition error: ${e.error}`);
+    };
+    recognition.onend = () => {
+      setIsRecording(null);
+      activeSpeakerRef.current = null;
+    };
+    recognitionRef.current = recognition;
+  }, [langA, langB, tone, settings.provider]);
 
   const toggleRecording = (side) => {
+    setError('');
     if (!recognitionRef.current) {
-      alert('Speech Recognition is not supported on this browser. Please use Chrome or Edge.');
+      setError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
       return;
     }
-
     if (isRecording === side) {
       recognitionRef.current.stop();
       setIsRecording(null);
       activeSpeakerRef.current = null;
       return;
     }
-
-    // Set both ref and state
     activeSpeakerRef.current = side;
     setIsRecording(side);
-    setTranscribedText('');
-    setTranslatedResult(null);
-
     // Speaker A speaks langA; Speaker B speaks langB
-    const speechLangCode = side === 'A' ? langA : langB;
-    recognitionRef.current.lang = BCP_MAP[speechLangCode] || 'en-US';
-
+    recognitionRef.current.lang = BCP_MAP[side === 'A' ? langA : langB] || 'en-US';
     try {
       recognitionRef.current.start();
     } catch (err) {
-      console.warn("Recognition already active or interrupted:", err);
+      console.warn('Recognition already active or interrupted:', err);
     }
   };
 
-  const handleTranslate = async (text, speakerSide) => {
+  const handleTranslate = async (text, side) => {
     setIsLoading(true);
-
-    // CRITICAL: If Speaker A talks, source is langA and target is langB
-    // If Speaker B talks, source is langB and target is langA
-    const src = speakerSide === 'A' ? langA : langB;
-    const tgt = speakerSide === 'A' ? langB : langA;
-
-    console.log(`[Translate Request] Side: ${speakerSide} | ${src} -> ${tgt} | Text: "${text}"`);
-
+    // Speaker A: langA → langB. Speaker B: langB → langA.
+    const src = side === 'A' ? langA : langB;
+    const tgt = side === 'A' ? langB : langA;
     try {
-      const res = await fetch('http://localhost:8000/speech-translate', {
+      const res = await fetch(`${API_BASE}/speech-translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           audio_text: text,
           source_language: src,
           target_language: tgt,
-          tone: tone,
-          provider: provider
-        })
+          tone,
+          provider: settingsRef.current.provider,
+        }),
       });
-
       if (!res.ok) {
-        const errData = await res.json();
+        const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || 'Translation request failed');
       }
-
       const data = await res.json();
-      setTranslatedResult(data);
-      playSpeech(data.translated_text, tgt);
+      setTurns((prev) => [...prev, { side, heard: text, srcLang: src, result: data }]);
+      if (settingsRef.current.autoSpeak) playSpeech(data.translated_text, tgt);
     } catch (err) {
       console.error(err);
-      alert('Error translating speech: ' + err.message);
+      setError(`Error translating speech: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -149,198 +135,102 @@ export default function SpeechTranslator({ provider = 'auto', onClose, onInsertT
   const playSpeech = (text, langCode) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = BCP_MAP[langCode] || 'en-US';
-    utterance.rate = 0.92;
-
+    utterance.rate = settingsRef.current.speechRate;
     const voices = voicesRef.current.length ? voicesRef.current : window.speechSynthesis.getVoices();
-    const match = voices.find(v =>
-      v.lang && (v.lang.toLowerCase() === BCP_MAP[langCode]?.toLowerCase() || v.lang.toLowerCase().startsWith(langCode))
+    const match = voices.find(
+      (v) => v.lang && (v.lang.toLowerCase() === BCP_MAP[langCode]?.toLowerCase() || v.lang.toLowerCase().startsWith(langCode))
     );
     if (match) utterance.voice = match;
-
     window.speechSynthesis.speak(utterance);
   };
 
   const swapLanguages = () => {
     setLangA(langB);
     setLangB(langA);
-    setTranscribedText('');
-    setTranslatedResult(null);
   };
 
   return (
-    <div className="w-full max-w-xl bg-[#111b21] border border-slate-700/80 rounded-2xl shadow-2xl p-6 text-slate-100">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xl">🎙️</span>
-          <div>
-            <h3 className="text-sm font-bold text-slate-100">Bidirectional Voice Coach</h3>
-            <p className="text-[10px] text-slate-400">Pragmatic speech-to-speech engine</p>
-          </div>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            ✕
-          </button>
-        )}
-      </div>
-
-      {/* Tone Selection */}
-      <div className="mb-4 bg-[#182229] p-2 rounded-xl border border-slate-700/60">
-        <label className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1.5 font-semibold">
-          Target Tone
-        </label>
-        <div className="grid grid-cols-3 gap-2">
-          {['polite', 'traditional', 'casual'].map((t) => (
-            <button
-              key={t}
-              onClick={() => setTone(t)}
-              className={`py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
-                tone === t
-                  ? 'bg-emerald-600 text-white shadow'
-                  : 'bg-[#202c33] text-slate-300 hover:bg-[#2a3942]'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Languages Selection & Swap */}
-      <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-2 mb-5 bg-[#182229] p-3 rounded-xl border border-slate-700/60">
-        <div>
-          <label className="block text-[10px] text-slate-400 mb-1">Speaker 1 (Side A)</label>
-          <select
-            value={langA}
-            onChange={(e) => setLangA(e.target.value)}
-            className="w-full bg-[#202c33] border border-slate-700 rounded-lg p-2 text-xs font-semibold text-emerald-400 focus:outline-none"
-          >
-            {LANG_OPTIONS.map(opt => <option key={opt.code} value={opt.code}>{opt.label}</option>)}
-          </select>
-        </div>
-
-        <button
-          onClick={swapLanguages}
-          className="mt-3 p-2 rounded-full bg-[#202c33] hover:bg-slate-700 text-slate-300 transition-colors"
-          title="Swap Languages"
-        >
-          ⇄
-        </button>
-
-        <div>
-          <label className="block text-[10px] text-slate-400 mb-1">Speaker 2 (Side B)</label>
-          <select
-            value={langB}
-            onChange={(e) => setLangB(e.target.value)}
-            className="w-full bg-[#202c33] border border-slate-700 rounded-lg p-2 text-xs font-semibold text-sky-400 focus:outline-none"
-          >
-            {LANG_OPTIONS.map(opt => <option key={opt.code} value={opt.code}>{opt.label}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Mic Buttons */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <button
-          onClick={() => toggleRecording('A')}
-          disabled={isLoading}
-          className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-            isRecording === 'A'
-              ? 'bg-red-500/20 border-red-500 text-red-300 ring-2 ring-red-500/50'
-              : 'bg-[#182229] hover:bg-[#202c33] border-emerald-500/30 text-slate-200'
-          }`}
-        >
-          <span className="text-2xl mb-1">{isRecording === 'A' ? '🛑' : '🎙️'}</span>
-          <span className="text-xs font-bold text-emerald-400">
-            Speak {LANG_OPTIONS.find(l => l.code === langA)?.label.split(' ')[0]}
-          </span>
-          <span className="text-[10px] text-slate-400 mt-0.5">
-            {isRecording === 'A' ? 'Listening...' : `Translates to ${LANG_OPTIONS.find(l => l.code === langB)?.label.split(' ')[0]}`}
-          </span>
-        </button>
-
-        <button
-          onClick={() => toggleRecording('B')}
-          disabled={isLoading}
-          className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all ${
-            isRecording === 'B'
-              ? 'bg-red-500/20 border-red-500 text-red-300 ring-2 ring-red-500/50'
-              : 'bg-[#182229] hover:bg-[#202c33] border-sky-500/30 text-slate-200'
-          }`}
-        >
-          <span className="text-2xl mb-1">{isRecording === 'B' ? '🛑' : '🎙️'}</span>
-          <span className="text-xs font-bold text-sky-400">
-            Speak {LANG_OPTIONS.find(l => l.code === langB)?.label.split(' ')[0]}
-          </span>
-          <span className="text-[10px] text-slate-400 mt-0.5">
-            {isRecording === 'B' ? 'Listening...' : `Translates to ${LANG_OPTIONS.find(l => l.code === langA)?.label.split(' ')[0]}`}
-          </span>
-        </button>
-      </div>
-
-      {/* Transcription Banner */}
-      {transcribedText && (
-        <div className="bg-[#182229] p-3 rounded-lg mb-3 border border-slate-700/50">
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">Detected Speech</p>
-          <p className="text-sm text-slate-100 italic">"{transcribedText}"</p>
-        </div>
-      )}
-
-      {/* Loading Spinner */}
-      {isLoading && (
-        <div className="text-center py-3 text-xs text-slate-400 flex items-center justify-center gap-2">
-          <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
-          Applying {tone} pragmatic calibration...
-        </div>
-      )}
-
-      {/* Result Card */}
-      {translatedResult && (
-        <div className="bg-[#182229] p-4 rounded-xl border border-emerald-500/30 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
-              {translatedResult.selected_tone} Output ({translatedResult.target_language.toUpperCase()})
-            </span>
-            <div className="flex items-center gap-2">
-              {onInsertToChat && (
-                <button
-                  onClick={() => onInsertToChat(translatedResult.translated_text)}
-                  className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded font-medium"
-                >
-                  Insert to Chat
-                </button>
-              )}
-              <button
-                onClick={() => playSpeech(translatedResult.translated_text, translatedResult.target_language)}
-                className="text-xs bg-[#202c33] hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded flex items-center gap-1"
-              >
-                🔊 Replay
-              </button>
+    <section className="page page-voice">
+      <div className="v-wrap">
+        <div className="v-main">
+          <div className="card v-cfg">
+            <div className="langrow">
+              <div className="a">
+                <label>Speaker 1 · Side A</label>
+                <select value={langA} onChange={(e) => setLangA(e.target.value)}>
+                  {LANG_OPTIONS.map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
+                </select>
+              </div>
+              <button className="swapb" onClick={swapLanguages} title="Swap languages"><Icon name="swap" /></button>
+              <div className="b">
+                <label>Speaker 2 · Side B</label>
+                <select value={langB} onChange={(e) => setLangB(e.target.value)}>
+                  {LANG_OPTIONS.map((o) => <option key={o.code} value={o.code}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <div className="cap">Target tone</div>
+              <div className="seg">
+                {TONE_INFO.map((t) => (
+                  <button key={t.id} className={tone === t.id ? 'on' : ''} onClick={() => setTone(t.id)}>{t.id}</button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <p className="text-base font-semibold text-slate-100 leading-relaxed">
-            {translatedResult.translated_text}
-          </p>
-
-          <div className="flex flex-wrap items-center justify-between border-t border-slate-800 pt-2 text-[11px] text-slate-400 gap-2">
-            <span className="bg-slate-800 text-emerald-300 px-2 py-0.5 rounded border border-slate-700">
-              {translatedResult.t_v_pronoun_used}
-            </span>
-            <span className="text-[10px] text-slate-500">{translatedResult.model_used}</span>
+          <div className="card thread" ref={threadRef}>
+            {turns.length === 0 && !isLoading && (
+              <div className="empty">Tap a microphone below and speak.<br />The conversation and its calibrated translation will appear here.</div>
+            )}
+            {turns.map((t, i) => (
+              <div key={i} className={`vb ${t.side === 'A' ? 'a' : 'b'}`}>
+                <small>{t.side === 'A' ? 'Speaker 1' : 'Speaker 2'} · {shortName(t.srcLang)}</small>
+                {t.heard}
+                <div className="tr">{t.result.translated_text}</div>
+                <div className="row">
+                  {t.result.t_v_pronoun_used && <span className="pron">{t.result.t_v_pronoun_used}</span>}
+                  <button onClick={() => playSpeech(t.result.translated_text, t.result.target_language)}>🔊 Replay</button>
+                  <button onClick={() => onInsertToChat(t.result.translated_text)}>Insert to chat</button>
+                </div>
+                {t.result.cultural_notes && <div className="note">💡 {t.result.cultural_notes}</div>}
+              </div>
+            ))}
+            {isLoading && <div className="loading"><span className="spin" />Applying {tone} pragmatic calibration…</div>}
           </div>
-          <p className="text-xs text-slate-400 italic bg-[#111b21] p-2 rounded border border-slate-800">
-            💡 {translatedResult.cultural_notes}
-          </p>
+
+          {error && <div className="err" style={{ margin: 0 }}>{error}</div>}
+
+          <div className="mics">
+            <div className={`card mic ${isRecording === 'A' ? 'rec' : ''}`} onClick={() => !isLoading && toggleRecording('A')}>
+              <div className="ring"><Icon name="mic" size={32} /></div>
+              <b>Speak {shortName(langA)}</b>
+              <span>{isRecording === 'A' ? 'Listening… tap to stop' : `Translates to ${shortName(langB)}`}</span>
+            </div>
+            <div className={`card mic bside ${isRecording === 'B' ? 'rec' : ''}`} onClick={() => !isLoading && toggleRecording('B')}>
+              <div className="ring"><Icon name="mic" size={32} /></div>
+              <b>Speak {shortName(langB)}</b>
+              <span>{isRecording === 'B' ? 'Listening… tap to stop' : `Translates to ${shortName(langA)}`}</span>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="v-side">
+          {TONE_INFO.map((t) => (
+            <div key={t.id} className="card tonecard" style={tone === t.id ? { borderColor: 'var(--accent)' } : undefined}
+              onClick={() => setTone(t.id)}>
+              <h4>{t.title}</h4>
+              <p>{t.text}</p>
+            </div>
+          ))}
+          <div className="card tonecard" style={{ borderColor: 'rgba(245,185,66,.35)' }}>
+            <h4 style={{ color: 'var(--amber)' }}>Browser speech</h4>
+            <p>Uses native Web Speech (STT + TTS). Best in Chrome or Edge.</p>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
