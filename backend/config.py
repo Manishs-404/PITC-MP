@@ -15,6 +15,13 @@ OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 LOCAL_MODEL_NAME: str = os.getenv("LOCAL_MODEL_NAME", "aya-expanse:8b")
 
 SUPPORTED_LANGUAGES: Dict[str, Dict[str, Any]] = {
+    "en": {
+        "name": "English",
+        "native": "English",
+        "script": "Latin",
+        "direction": "ltr",
+        "t_v_system": "Modal deference (Could you please / Would it be possible) vs. Direct imperative"
+    },
     "hi": {
         "name": "Hindi",
         "native": "हिन्दी",
