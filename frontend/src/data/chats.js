@@ -64,6 +64,7 @@ export const INITIAL_ROLE_CHATS = {
 };
 
 export const SCRIPT_OPTIONS = [
+  { code: 'en', label: 'English (Latin)' },
   { code: 'hi', label: 'Hindi (हिन्दी)' },
   { code: 'ta', label: 'Tamil (தமிழ்)' },
   { code: 'kn', label: 'Kannada (ಕನ್ನಡ)' },
