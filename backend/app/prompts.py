@@ -32,16 +32,16 @@ Draft Message: "{draft}"
 
 Task:
 1. Determine if this draft contains any Cultural Risk Taxonomy (CRT) violations given the recipient's role:
-   - C1: Register / Pronoun mismatch (e.g., using informal 'Tu/Tum' or 'Nee' with a senior, or overly stiff honorifics with an intimate peer)
+   - C1: Register / Pronoun or Politeness Mismatch (e.g., using informal 'Tu/Tum' or 'Nee' with a senior, or blunt imperatives in English without modal softening)
    - C2: Idiomatic opacity / mistranslations
    - C3: Gendered concord errors
    - C4: Hierarchy / deference violations
    - C5: Socio-cultural or religious insensitivity
 
 2. Generate THREE calibrated versions of the draft in {language}:
-   - Formal: High deference with formal honorific pronouns (e.g. Hindi: Aap, Tamil: Neenga, Kannada: Neevu, Arabic: Hadratak). Suitable for seniors, superiors, elders, or clients.
+   - Formal: High deference with formal honorifics (Hindi: Aap, Tamil: Neenga, Kannada: Neevu, Arabic: Hadratak) or modal hedging in English (e.g., "Could you please...", "I would appreciate it if..."). Suitable for seniors, superiors, elders, or clients.
    - Semi-Formal: Polite, balanced register suitable for professional peer-to-peer collaboration.
-   - Casual: Informal, direct peer/colloquial phrasing (e.g. Hindi: Tum/Tu, Tamil: Nee, Kannada: Neenu, Arabic: Inta) suitable for junior teammates or close friends.
+   - Casual: Informal, direct peer/colloquial phrasing (Hindi: Tum/Tu, Tamil: Nee, Kannada: Neenu, Arabic: Inta, English: direct colloquial phrasing) suitable for junior teammates or close friends.
 
 3. Provide brief 1-sentence descriptions of how the recipient will perceive each version.
 
