@@ -315,7 +315,7 @@ input[type=range]{accent-color:var(--accent);width:160px}
 .err{margin:0 20px 10px;padding:9px 12px;border-radius:12px;background:rgba(240,128,128,.1);border:1px solid rgba(240,128,128,.4);color:var(--red);font-size:12.5px}
 .spin{width:15px;height:15px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
-.cbtn:disabled,.sendb:disabled{opacity:.4;cursor:not-allowed}
+.cbtn:disabled,.sendb:disabled{opacity:.6;cursor:not-allowed}
 .loading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;align-self:center;padding:6px}
 .filters button,.seg button,.tg,.eng,.mic,.item,.var,.mode,.rrow{cursor:pointer}
 /* Tailwind preflight resets heading weight; restore it for the app shell */
@@ -347,4 +347,3 @@ input[type=range]{accent-color:var(--accent);width:160px}
 .tip-body a{color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;margin-top:4px}
 
 input::placeholder,textarea::placeholder{color:var(--disabled)}
-button:disabled{color:var(--disabled)}
