@@ -102,6 +102,13 @@ export default function MainPage() {
           <div className="crumbs">
             <h2>{title}</h2>
           </div>
+          <button
+            className="tbtn"
+            title={settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
+          >
+            <Icon name="theme" />
+          </button>
         </header>
 
         <main className="pages">
