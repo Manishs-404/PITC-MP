@@ -65,10 +65,18 @@ export default function MainPage() {
     setPage('chats');
   };
 
+  const createChat = (role) => {
+    const base = INITIAL_ROLE_CHATS[role];
+    const id = `${role}-${Date.now()}`;
+    setChatThreads((prev) => ({ [id]: { ...base, id, name: `New chat · ${base.roleLabel.split(' / ')[0]}`, title: base.title, unread: 0, checked: 0, flagged: 0, messages: [] }, ...prev }));
+    setActiveChatId(id);
+    setPage('chats');
+  };
+
   const updateThread = (id, patch) =>
     setChatThreads((prev) => ({ ...prev, [id]: { ...prev[id], ...(typeof patch === 'function' ? patch(prev[id]) : patch) } }));
 
-  const [title, subtitle] = PAGES[page];
+  const [title] = PAGES[page];
 
   return (
     <div className="shell">
@@ -93,33 +101,17 @@ export default function MainPage() {
         <header className="topbar">
           <div className="crumbs">
             <h2>{title}</h2>
-            <small>{subtitle}</small>
           </div>
-          <div className="pill engpill">
-            <span className="live" />
-            Engine
-            <select value={settings.provider} onChange={(e) => updateSetting('provider', e.target.value)}>
-              <option value="auto">Auto (Gemini ⇄ Aya 8B)</option>
-              <option value="cloud">Cloud Only (Gemini)</option>
-              <option value="local">Local Only (Ollama)</option>
-            </select>
-          </div>
-          <button
-            className="tbtn"
-            title="Toggle light / dark"
-            onClick={() => updateSetting('theme', settings.theme === 'dark' ? 'light' : 'dark')}
-          >
-            <Icon name="theme" />
-          </button>
         </header>
 
         <main className="pages">
-          {page === 'home' && <HomePage threads={chatThreads} onNavigate={setPage} onOpenChat={openChat} />}
+          {page === 'home' && <HomePage threads={chatThreads} onNavigate={setPage} onOpenChat={openChat} onQuickDraft={(role, text) => { setActiveChatId(role); setPastedText(text); setPage('chats'); }} />}
           {page === 'chats' && (
             <ChatApp
               threads={chatThreads}
               activeChatId={activeChatId}
               onSelectChat={openChat}
+              onNewChat={createChat}
               onUpdateThread={updateThread}
               settings={settings}
               initialDraft={pastedText}

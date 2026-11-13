@@ -20,6 +20,7 @@ export default function ChatApp({
   threads,
   activeChatId,
   onSelectChat,
+  onNewChat,
   onUpdateThread,
   settings,
   initialDraft = '',
@@ -33,6 +34,7 @@ export default function ChatApp({
   const [selectedTone, setSelectedTone] = useState('formal');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [picking, setPicking] = useState(false);
   const feedRef = useRef(null);
 
   const activeChat = threads[activeChatId];
@@ -109,8 +111,18 @@ export default function ChatApp({
     <section className={`page page-chats ${mobileOpen ? 'open' : ''}`}>
       {/* ---------- conversation list ---------- */}
       <aside className="clist">
-        <div className="clist-h"><h3>Conversations</h3></div>
-        <div className="search"><Icon name="search" size={18} /><input placeholder="Search conversations" /></div>
+        <div className="clist-h">
+          <h3>Conversations</h3>
+          <button className="newchat" onClick={() => setPicking((v) => !v)} title="Start a new chat"><Icon name="plus" size={16} />New chat</button>
+        </div>
+        {picking && (
+          <div className="pick">
+            <span>Chat with a…</span>
+            {[['senior', 'Senior'], ['peer', 'Peer'], ['junior', 'Junior']].map(([k, l]) => (
+              <button key={k} onClick={() => { onNewChat(k); setPicking(false); setDraft(''); setCoachResult(null); setMobileOpen(true); }}>{l}</button>
+            ))}
+          </div>
+        )}
         <div className="filters">
           {[['all', 'All'], ['senior', 'Senior'], ['peer', 'Peer'], ['junior', 'Junior']].map(([k, l]) => (
             <button key={k} className={filter === k ? 'on' : ''} onClick={() => setFilter(k)}>{l}</button>
@@ -134,10 +146,6 @@ export default function ChatApp({
             );
           })}
         </div>
-        <div className="guard">
-          <Icon name="shield" />
-          <span><b>CRT guardrail on.</b> Drafts are checked for register, idiom, gender, hierarchy and sensitivity before sending.</span>
-        </div>
       </aside>
 
       {/* ---------- active conversation ---------- */}
@@ -158,7 +166,6 @@ export default function ChatApp({
         </div>
 
         <div className="feed" ref={feedRef}>
-          <div className="sys amber"><span>🛡️ Drafts in this thread are screened by the CRT before sending</span></div>
           {activeChat.messages.map((m, i) => {
             const prev = activeChat.messages[i - 1];
             return (
@@ -208,7 +215,6 @@ export default function ChatApp({
                     </div>
                   ))}
                 </div>
-                <div className="c-foot">Select a card to swap it into your draft. You can still edit before sending.</div>
               </>
             )}
           </div>
@@ -244,21 +250,6 @@ export default function ChatApp({
           <div className="kv"><span>Target tone</span><b>{activeChat.targetTone}</b></div>
           <div className="kv"><span>Pronoun</span><b>{activeChat.pronoun}</b></div>
           <div className="kv"><span>Expectation</span><b style={{ textAlign: 'right' }}>{activeChat.expectation}</b></div>
-        </div>
-        <div className="box">
-          <h4>Thread insights</h4>
-          <div className="kv"><span>Drafts checked</span><b>{activeChat.checked}</b></div>
-          <div className="kv"><span>Risks flagged</span><b>{activeChat.flagged}</b></div>
-          {activeChat.checked > 0 && (
-            <>
-              <div className="kv"><span>Clean drafts</span><b>{Math.round(((activeChat.checked - activeChat.flagged) / activeChat.checked) * 100)}%</b></div>
-              <div className="meter"><i style={{ width: `${((activeChat.checked - activeChat.flagged) / activeChat.checked) * 100}%` }} /></div>
-            </>
-          )}
-        </div>
-        <div className="box">
-          <h4>Coaching tip</h4>
-          <div className="tip">{activeChat.tip}</div>
         </div>
       </aside>
     </section>

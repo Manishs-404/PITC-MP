@@ -83,14 +83,6 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
     if (last) handleTranslate(last.heard, last.side, true, tone);
   }, [tone]);
 
-  const newChat = () => {
-    window.speechSynthesis?.cancel();
-    recognitionRef.current?.abort?.();
-    setTurns([]);
-    setError('');
-    setIsRecording(null);
-  };
-
   const toggleRecording = (side) => {
     setError('');
     if (!recognitionRef.current) {
@@ -171,10 +163,6 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
       <div className="v-wrap">
         <div className="v-main">
           <div className="card v-cfg">
-            <div className="v-top">
-              <b>Voice Coach</b>
-              <button className="newchat" onClick={newChat} title="Start a new conversation"><Icon name="plus" size={16} />New chat</button>
-            </div>
             <div className="langrow">
               <div className="a">
                 <label>Speaker 1 · Side A</label>
@@ -202,7 +190,7 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
 
           <div className="card thread" ref={threadRef}>
             {turns.length === 0 && !isLoading && (
-              <div className="empty">Tap a microphone below and speak.<br />The conversation and its calibrated translation will appear here.</div>
+              <div className="empty">Tap a microphone below and speak.</div>
             )}
             {turns.map((t, i) => (
               <div key={i} className={`vb ${t.side === 'A' ? 'a' : 'b'}`}>

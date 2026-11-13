@@ -317,3 +317,28 @@ input[type=range]{accent-color:var(--accent);width:160px}
 .filters button,.seg button,.tg,.eng,.mic,.item,.var,.mode,.rrow{cursor:pointer}
 /* Tailwind preflight resets heading weight; restore it for the app shell */
 .shell h1,.shell h2,.shell h3,.shell h4{font-weight:700}
+
+.pick{display:flex;align-items:center;gap:8px;margin:0 12px 8px;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+.pick button{padding:5px 12px;border-radius:999px;background:var(--surface-3);font-weight:600;color:var(--text)}
+.pick button:hover{background:var(--accent);color:#04201a}
+
+/* home extras */
+.hero h1{font-size:34px;margin-bottom:20px}
+.hero .hstats{display:flex;gap:12px;margin-top:26px;position:relative;flex-wrap:wrap}
+.hero .hstats div{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:10px 18px;min-width:120px}
+.hero .hstats b{display:block;font-size:24px;line-height:1.1}
+.hero .hstats span{font-size:12px;opacity:.85}
+.quick .q-body{padding:4px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.q-roles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.q-roles button{padding:9px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-weight:700;font-size:13px;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:1px}
+.q-roles button small{font-size:11px;font-weight:500;color:var(--muted)}
+.q-roles button.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.quick textarea{width:100%;resize:none;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;color:var(--text);font:inherit;outline:0}
+.quick textarea:focus{border-color:var(--accent)}
+.quick .btn{align-self:flex-start}
+.quick .btn:disabled{opacity:.5;cursor:default}
+.tipcard{background:linear-gradient(160deg,var(--accent-bg),var(--surface) 70%)}
+.tip-body{padding:4px 20px 20px;display:flex;flex-direction:column;gap:8px}
+.tip-body b{font-size:17px}
+.tip-body p{color:var(--muted);line-height:1.55;font-size:13.5px}
+.tip-body a{color:var(--accent);font-weight:600;font-size:13px;cursor:pointer;margin-top:4px}

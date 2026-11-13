@@ -12,10 +12,6 @@ export default function CrtGuide() {
   return (
     <section className="page page-crt">
       <div className="crt-in">
-        <p>
-          The Cultural Risk Taxonomy scores every outbound draft against five sociopragmatic dimensions. When a
-          risk is found, PITC explains it and suggests calibrated rewrites.
-        </p>
         <div className="crt-grid">
           {DIMENSIONS.map((d) => (
             <div key={d.code} className="card crt" style={d.wide ? { gridColumn: '1 / -1' } : undefined}>
