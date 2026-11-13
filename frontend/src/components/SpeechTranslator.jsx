@@ -13,11 +13,7 @@ const LANG_OPTIONS = [
   { code: 'ar', label: 'Arabic (العربية)' },
 ];
 
-const TONE_INFO = [
-  { id: 'polite', title: 'Polite', text: 'Everyday respectful register. Uses formal “you” (Aap / Neenga) without heavy honorifics.' },
-  { id: 'traditional', title: 'Traditional', text: 'Elevated, deferential phrasing for elders, officials and ceremonial settings.' },
-  { id: 'casual', title: 'Casual', text: 'Close, informal register (Tum / Tu) for friends, juniors and family.' },
-];
+const TONES = ['polite', 'traditional', 'casual'];
 
 const shortName = (code) => LANG_OPTIONS.find((l) => l.code === code)?.label.split(' ')[0];
 
@@ -77,6 +73,24 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
     recognitionRef.current = recognition;
   }, [langA, langB, tone, settings.provider]);
 
+  // Changing the target tone re-calibrates the latest turn straight away
+  const firstToneRun = useRef(true);
+  const turnsRef = useRef(turns);
+  useEffect(() => { turnsRef.current = turns; }, [turns]);
+  useEffect(() => {
+    if (firstToneRun.current) { firstToneRun.current = false; return; }
+    const last = turnsRef.current[turnsRef.current.length - 1];
+    if (last) handleTranslate(last.heard, last.side, true, tone);
+  }, [tone]);
+
+  const newChat = () => {
+    window.speechSynthesis?.cancel();
+    recognitionRef.current?.abort?.();
+    setTurns([]);
+    setError('');
+    setIsRecording(null);
+  };
+
   const toggleRecording = (side) => {
     setError('');
     if (!recognitionRef.current) {
@@ -100,7 +114,7 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
     }
   };
 
-  const handleTranslate = async (text, side) => {
+  const handleTranslate = async (text, side, replaceLast = false, toneOverride = tone) => {
     setIsLoading(true);
     // Speaker A: langA → langB. Speaker B: langB → langA.
     const src = side === 'A' ? langA : langB;
@@ -113,7 +127,7 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
           audio_text: text,
           source_language: src,
           target_language: tgt,
-          tone,
+          tone: toneOverride,
           provider: settingsRef.current.provider,
         }),
       });
@@ -122,7 +136,8 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
         throw new Error(errData.detail || 'Translation request failed');
       }
       const data = await res.json();
-      setTurns((prev) => [...prev, { side, heard: text, srcLang: src, result: data }]);
+      const turn = { side, heard: text, srcLang: src, result: data };
+      setTurns((prev) => (replaceLast ? [...prev.slice(0, -1), turn] : [...prev, turn]));
       if (settingsRef.current.autoSpeak) playSpeech(data.translated_text, tgt);
     } catch (err) {
       console.error(err);
@@ -156,6 +171,10 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
       <div className="v-wrap">
         <div className="v-main">
           <div className="card v-cfg">
+            <div className="v-top">
+              <b>Voice Coach</b>
+              <button className="newchat" onClick={newChat} title="Start a new conversation"><Icon name="plus" size={16} />New chat</button>
+            </div>
             <div className="langrow">
               <div className="a">
                 <label>Speaker 1 · Side A</label>
@@ -174,8 +193,8 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
             <div>
               <div className="cap">Target tone</div>
               <div className="seg">
-                {TONE_INFO.map((t) => (
-                  <button key={t.id} className={tone === t.id ? 'on' : ''} onClick={() => setTone(t.id)}>{t.id}</button>
+                {TONES.map((t) => (
+                  <button key={t} className={tone === t ? 'on' : ''} onClick={() => setTone(t)}>{t}</button>
                 ))}
               </div>
             </div>
@@ -217,19 +236,6 @@ export default function SpeechTranslator({ settings, onInsertToChat }) {
           </div>
         </div>
 
-        <div className="v-side">
-          {TONE_INFO.map((t) => (
-            <div key={t.id} className="card tonecard" style={tone === t.id ? { borderColor: 'var(--accent)' } : undefined}
-              onClick={() => setTone(t.id)}>
-              <h4>{t.title}</h4>
-              <p>{t.text}</p>
-            </div>
-          ))}
-          <div className="card tonecard" style={{ borderColor: 'rgba(245,185,66,.35)' }}>
-            <h4 style={{ color: 'var(--amber)' }}>Browser speech</h4>
-            <p>Uses native Web Speech (STT + TTS). Best in Chrome or Edge.</p>
-          </div>
-        </div>
       </div>
     </section>
   );

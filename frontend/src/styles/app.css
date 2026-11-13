@@ -205,7 +205,10 @@ svg{display:block;fill:currentColor}
 
 /* ============ VOICE ============ */
 .page-voice{overflow-y:auto;justify-content:center;padding:26px}
-.v-wrap{width:100%;max-width:1000px;display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+.v-wrap{width:100%;max-width:1000px;display:grid;grid-template-columns:1fr;gap:20px;align-items:start}
+.v-top{display:flex;align-items:center;justify-content:space-between}
+.newchat{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:var(--accent);color:#04201a;font-weight:700;font-size:13px}
+.newchat:hover{filter:brightness(1.1)}
 .v-main{display:flex;flex-direction:column;gap:16px}
 .v-cfg{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
 .langrow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end}
